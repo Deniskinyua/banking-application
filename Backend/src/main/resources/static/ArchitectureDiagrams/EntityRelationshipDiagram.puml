@@ -44,7 +44,7 @@ entity User {
 
 ' Relationships
 
-Account ||--o{Transaction: "has"
+Account ||--o{Transaction
 Account}|--|| User
 
 @enduml
