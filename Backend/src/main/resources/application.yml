@@ -1,0 +1,24 @@
+#spring.application.name=Backend
+spring:
+  datasource:
+    url: jdbc:h2:mem:bankingdb
+
+    driver-class-name: com.mysql.jdbc.Driver
+    username: admin
+    password: Dennis123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+azure:
+  servicebus:
+    connection-string: AZURE_SERVICE_BUS_CONNECTION_STRING
+    queue-name: transaction-notifications
+    sender:
+      queue-name: transaction-notifications
+
+app:
+  transaction:
+    max-daily-limit: 500000.00
+    transaction-cost: 0.00

@@ -1,0 +1,50 @@
+@startuml Banking_ERD
+'Enable ER diagram syntax
+skinparam linetype ortho
+
+entity Account{
+*id:Long<<generated>>
+--
+*accountNumber: String <<unique>>
+*customerId:String<<unique>>
+*customerName:String
+*balance:BigDecimal
+*dailyTransactionLimit: BigDecimal
+*dailyTransactionAmount: BigDecimal
+}
+
+entity Transaction{
+*transactionId: String<<pk>>
+--
+*transactionType : Enum (DEPOSIT, WITHDRAWAL, TRANSFER_IN, TRANSFER_OUT
+*transactionAmount : BigDecimal
+*description: String
+*timestamp: LocalDateTime
+*balanceAfter: BigDecimal
+}
+
+entity TransactionNotification {
+*id : Long<<generated>>
+--
+*transactionId : String<<fk>>
+*customerId: String<<fk>>
+*message: String
+*timestamp: LocalDateTime
+*status: Enum (PENDING, DELIVERED, FAILED)
+}
+
+entity User {
+*userId: String<<pk>>
+--
+*userName: String
+*phoneNumber: String<<unique>>
+*email:String<<unique>>
+*createdAt: LocalDateTime
+}
+
+' Relationships
+
+Account ||--o{Transaction: "has"
+Account}|--|| User
+
+@enduml
