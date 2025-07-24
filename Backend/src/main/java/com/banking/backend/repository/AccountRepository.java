@@ -9,5 +9,7 @@ import java.util.Optional;
 @Repository
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
-    Optional<Account> findByUserId(String fromUserId);
+    // Best practice: Name query methods clearly. findByUserId is fine.
+    Optional<Account> findByCustomerId(String customerId); // Changed from fromUserId for generality
+    //findByUserId
 }
