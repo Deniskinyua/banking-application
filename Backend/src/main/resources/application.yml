@@ -1,24 +1,38 @@
-#spring.application.name=Backend
-spring:
-  datasource:
-    url: jdbc:h2:mem:bankingdb
+server:
+  port: 8080
 
-    driver-class-name: com.mysql.jdbc.Driver
-    username: admin
-    password: Dennis123
+spring:
+  application:
+    name: Backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/<DATABASE_NAME>
+    driver-class-name: org.postgresql.Driver
+    username: <USERNAME>
+    password: <PASSWORD>
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+  cloud:
+    azure:
+      servicebus:
+        connection-string: <MY_CONNECTION_STRING>
 
 azure:
   servicebus:
-    connection-string: AZURE_SERVICE_BUS_CONNECTION_STRING
-    queue-name: transaction-notifications
-    sender:
-      queue-name: transaction-notifications
+    queue-name: transaction-notifications-queue
 
-app:
-  transaction:
-    max-daily-limit: 500000.00
-    transaction-cost: 0.00
+logging:
+  level:
+    org:
+      springframework:
+        web: TRACE
+        web.servlet.mvc.method.annotation: TRACE
+        web.servlet.handler: TRACE
+        web.filter: TRACE
+  com:
+    banking:
+      backend: DEBUG
+
+
+
