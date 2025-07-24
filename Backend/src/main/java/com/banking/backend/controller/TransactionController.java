@@ -26,13 +26,7 @@ public class TransactionController {
     @Operation(summary = "Transfer funds between accounts",
     description = "Initiates a fund transfer from a sender account to a receiver account")
     public ResponseEntity<Void> transferFunds( @RequestBody TransactionRequestDTO request){
-        try {
             transactionService.transferFunds(request);
             return ResponseEntity.ok().build();
-        } catch (TransactionProcessingException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("An unexpected error occurred during fund transfer.", e);
-        }
     }
 }
