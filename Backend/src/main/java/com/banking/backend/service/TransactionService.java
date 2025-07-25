@@ -30,7 +30,7 @@ public class TransactionService implements ITransactionService {
 
     private final AccountRepository accountRepository;
     private final NotificationService notificationService;
-    private static Logger log = LoggerFactory.getLogger(TransactionService.class);
+    private static final Logger log = LoggerFactory.getLogger(TransactionService.class);
 
     public TransactionService(AccountRepository accountRepository, NotificationService notificationService) {
         this.accountRepository = accountRepository;
