@@ -1,7 +1,7 @@
 package com.banking.backend.service;
 
 import com.banking.backend.GlobalExceptationHandlers.InsufficientBalanceException;
-import com.banking.backend.GlobalExceptationHandlers.LimitExceededException; // Correct import
+import com.banking.backend.GlobalExceptationHandlers.LimitExceededException;
 import com.banking.backend.dto.TransactionRequestDTO;
 import com.banking.backend.enums.TransactionType;
 import com.banking.backend.model.Account;
@@ -16,8 +16,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Service class responsible for handling financial transaction business logic
+ * particularly fund transfers between user accounts. It encapsulates the core business logic
+ * including validation, debit/credit operations and integration with notification services
+ *
+ * @author Denis Kinyua
+ * @version 1.0
+ * @since 10/07/2025
+ */
 @Service
-public class TransactionService {
+public class TransactionService implements ITransactionService {
 
     private final AccountRepository accountRepository;
     private final NotificationService notificationService;
@@ -28,7 +37,27 @@ public class TransactionService {
         this.notificationService = notificationService;
     }
 
-    @Transactional // Ensure atomicity of debit/credit operations
+    /**
+     * Initiates and processes a fund transfer between two customer accounts.
+     * This method handles the entire fund transfer lifecycle including:
+     * <ul>
+     * <li>Retrieving sender and recipient accounts.</li>
+     * <li>Performing essential transaction validations (e.g., sufficient balance, daily limit).</li>
+     * <li>Debiting the sender's account and crediting the recipient's account.</li>
+     * <li>Recording corresponding debit and credit transactions.</li>
+     * <li>Persisting updated account and transaction data.</li>
+     * <li>Asynchronously sending transfer notifications.</li>
+     * </ul>
+     * The operation is atomic, ensuring both debit and credit succeed or both fail.
+     *
+     * @param request The {@link TransactionRequestDTO} containing the details for the fund transfer,
+     * including sender and recipient customer IDs and the transfer amount.
+     * @throws IllegalArgumentException If the sender or recipient account is not found, or if
+     * the transfer is attempted to the same account.
+     * @throws InsufficientBalanceException If the sender's account has insufficient funds.
+     * @throws LimitExceededException If the sender's daily transaction limit would be exceeded.
+     */
+    @Transactional
     public void transferFunds(TransactionRequestDTO request) {
         log.info("Attempting fund transfer from user {} to user {} for amount {}",
                 request.getFromUserId(), request.getToUserId(), request.getAmount());
@@ -98,6 +127,17 @@ public class TransactionService {
         }
     }
 
+    /**
+     * Helper method to create a new Transaction entity.
+     *
+     * @param id The unique identifier for the transaction.
+     * @param type The type of transaction (e.g., TRANSFER_IN, TRANSFER_OUT).
+     * @param amount The amount of the transaction.
+     * @param description A descriptive string for the transaction.
+     * @param timestamp The exact time the transaction occurred.
+     * @param balanceAfter The account balance after this transaction.
+     * @return A new {@link Transaction} entity.
+     */
     private Transaction createTransaction(String id, TransactionType type, BigDecimal amount,
                                           String description, LocalDateTime timestamp, BigDecimal balanceAfter){
         Transaction transaction = new Transaction();
@@ -110,27 +150,19 @@ public class TransactionService {
         return transaction;
     }
 
+    /**
+     * Validates if an account has sufficient balance and has not exceeded its daily transaction limit
+     * for a given amount.
+     *
+     * @param account The {@link Account} object to validate.
+     * @param amount The {@link BigDecimal} amount for the transaction.
+     * @throws InsufficientBalanceException If the account's balance is less than the transaction amount.
+     * @throws LimitExceededException If the transaction amount would cause the account's daily limit to be exceeded.
+     */
     private void validateTransaction(Account account, BigDecimal amount) throws InsufficientBalanceException, LimitExceededException {
-        // Corrected comparison: balance must be strictly greater than amount
-        // If balance is 100 and amount is 100, it's NOT insufficient.
-        // If balance is 100 and amount is 100.01, it IS insufficient.
-        if (account.getBalance().compareTo(amount) < 0) { // Keep '< 0' if partial balance transfer is possible
+        if (account.getBalance().compareTo(amount) < 0) {
             throw new InsufficientBalanceException("Insufficient Balance");
         }
-        // If a direct "transfer all" scenario is allowed, then account.getBalance().compareTo(amount) < 0
-        // is correct. If it must be strictly greater, then account.getBalance().compareTo(amount) <= 0.
-        // Your original logic for <= 0 for insufficient balance seems more intuitive for "cannot be less than or equal to amount".
-        // Let's stick with '< 0' meaning 'balance is strictly less than amount', which implies insufficient.
-        // So, if you have 100 and try to send 100, it passes. If you have 99 and try to send 100, it fails.
-        // If you intended 100 to 100 to fail, use compareTo(amount) <= 0.
-        // Reverting to your original for clarity, meaning "cannot be less than or equal to 0"
-        // Let's assume you meant "balance must be strictly greater than amount for transfer to occur"
-        // If you have 100 and send 100, new balance is 0. If you have 100 and send 100.01, insufficient.
-//        if(account.getBalance().compareTo(amount) < 0){ // if balance < amount, insufficient
-//            throw new InsufficientBalanceException("Insufficient Balance");
-//        }
-
-
         BigDecimal newDailyAmount = account.getDailyTransactionAmount().add(amount);
         if(newDailyAmount.compareTo(account.getDailyTransactionLimit()) > 0){
             throw new LimitExceededException(String.format("Daily limit exceeded. Remaining limit: %.2f",
