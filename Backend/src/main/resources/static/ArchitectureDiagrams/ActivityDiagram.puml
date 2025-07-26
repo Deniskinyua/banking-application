@@ -1,16 +1,93 @@
 @startuml
-'https://plantuml.com/object-diagram
+title Fund Transfer Process
 
-object London
-object Washington
-object Berlin
-object NewYork
+start
 
-map CapitalCity {
- UK *-> London
- USA *--> Washington
- Germany *---> Berlin
+partition "Client" {
+  :Enter Transaction Details;
+  :Submit Transfer Request;
 }
 
-NewYork --> CapitalCity::USA
+-> Request Received;
+
+partition "TransactionController" {
+  :Validate TransactionRequestDTO;
+  if (Validation Failed?) then (yes)
+    :Return 400 Bad Request;
+    stop
+  else (no)
+    :Call TransactionService.transferFunds();
+  endif
+}
+
+partition "TransactionService" {
+  :Retrieve Sender and Recipient Accounts;
+  if (Account Not Found or Self-Transfer?) then (yes)
+    :Throw IllegalArgumentException;
+    --> (Handle Exception)
+  else (no)
+    :Validate Transaction (Balance, Limit);
+    if (Validation Failed?) then (yes)
+      :Throw InsufficientBalanceException/LimitExceededException;
+      --> (Handle Exception)
+    else (no)
+      :Generate Transaction ID;
+      :Debit Sender Account;
+      :Create Debit Transaction Record;
+      :Save Sender Account & Debit Transaction;
+      :Credit Recipient Account;
+      :Create Credit Transaction Record;
+      :Save Recipient Account & Credit Transaction;
+      fork
+        partition "NotificationService" {
+          :Prepare Sender Notification;
+          :Send Sender Notification to Azure Service Bus;
+          :Prepare Recipient Notification;
+          :Send Recipient Notification to Azure Service Bus;
+          if (Notification Sending Error?) then (yes)
+            :Log Error (No Rollback);
+          else (no)
+            :Notifications Enqueued;
+          endif
+        }
+      fork again
+        partition "Database Persistence" {
+          :Commit Transaction;
+        }
+      end fork
+    endif
+  endif
+}
+
+partition "Global Exception Handler" {
+  --(Handle Exception) --> :Map Exception to HTTP Status Code;
+  :Return Error Response to Client;
+  stop
+}
+
+--> Transfer Successful;
+
+partition "Client" {
+  :Display Success Message;
+}
+
+split
+  partition "Azure Service Bus" {
+    :Message Enqueued;
+    :Message Consumed;
+  }
+
+  partition "NotificationProcessor" {
+    :Receive Message;
+    :Deserialize Message to TransactionNotification;
+    :Process Notification (e.g., print/log);
+    :Acknowledge Message;
+  }
+split again
+  partition "Logs" {
+    :Log all key events;
+  }
+end split
+
+stop
 @enduml

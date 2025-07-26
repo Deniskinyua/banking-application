@@ -1,34 +1,115 @@
 @startuml
-'https://plantuml.com/component-diagram
+skinparam componentStyle rectangle
+skinparam packageHeaderFontColor Black
+skinparam packageFontColor RoyalBlue
+skinparam packageBorderColor RoyalBlue
+skinparam componentBorderColor DarkGreen
+skinparam arrowColor DarkGrey
+skinparam arrowThickness 1
 
+package "Banking Application Backend" {
 
-package "Some Group" {
-  HTTP - [First Component]
-  [Another Component]
-}
-
-node "Other Groups" {
-  FTP - [Second Component]
-  [First Component] --> FTP
-}
-
-cloud {
-  [Example 1]
-}
-
-
-database "MySql" {
-  folder "This is my folder" {
-    [Folder 3]
+  package "Web API Components" {
+    component "TransactionController" as Controller <<Spring RestController>>
+    component "GlobalExceptionHandler" as GlobalExHandler <<Spring ControllerAdvice>>
+    Controller .right.> GlobalExHandler : <<throws errors to>>
   }
-  frame "Foo" {
-    [Frame 4]
+
+  package "Business Logic Components" {
+    component "TransactionService" as TxService <<Spring Service>>
+    component "NotificationService" as NotifService <<Spring Service>>
+    component "NotificationProcessor" as NotifProcessor <<Spring Component>>
+    component "ServiceBusSenderClient" as SBSenderClient <<Azure SDK Client>>
+    component "ServiceBusProcessorClientBuilder" as SBProcessorBuilder <<Azure SDK Client>>
+    component "ServiceBusReceivedMessageContext" as SBMessageContext <<Azure SDK Object>>
   }
+
+  package "Data Access Components" {
+    component "AccountRepository" as AccountRepo <<Spring Data JPA Repository>>
+  }
+
+  package "Data Structures" {
+    component "TransactionRequestDTO" as TxRequestDTO <<Input DTO>>
+    component "TransactionNotification" as TxNotification <<Message DTO>>
+    component "Account, Transaction" as Models <<JPA Entities>>
+    component "TransactionType Enum" as TxTypeEnum <<Enum>>
+  }
+
+  package "Utility Components" {
+    component "TransactionIdGenerator" as IdGenerator <<Utility>>
+    component "MessageFormatter" as MsgFormatter <<Utility>>
+  }
+
+  package "Configuration & Infrastructure" {
+    component "ServiceBusConfig" as SBConfig <<Spring Configuration>>
+    component "ObjectMapper" as ObjMapper <<Jackson>>
+  }
+
+  ' API Layer to Business Logic
+  Controller --|> TxService : calls transferFunds()
+
+  ' Business Logic dependencies
+  TxService --|> AccountRepo : manages persistence
+  TxService --|> NotifService : initiates notifications
+  TxService --|> TxRequestDTO : processes input
+  TxService --|> Models : manipulates entities
+  TxService --|> IdGenerator : generates IDs
+  TxService --|> TxTypeEnum : uses enum for types
+
+  NotifService --|> MsgFormatter : formats messages
+  NotifService --|> TxNotification : creates notification DTO
+  NotifService --|> ObjMapper : serializes DTO to JSON
+
+  NotifService --|> Models : reads account details for messages
+  NotifService --|> TxTypeEnum : uses enum for type in DTO
+
+  NotifProcessor --|> ObjMapper : deserializes JSON to DTO
+  NotifProcessor --|> TxNotification : consumes notification DTO
+  NotifProcessor --|> SBProcessorBuilder : configures processor
+  NotifProcessor --|> SBMessageContext : uses for message lifecycle
+
+  ' Data Access dependencies
+  AccountRepo --|> Models : manages entities
+
+  ' Configuration dependencies (Bean provision)
+  SBConfig .[#Orange].> SBSenderClient : provides bean
+  SBConfig .[#Orange].> SBProcessorBuilder : provides bean
+  SBConfig .[#Orange].> ObjMapper : provides bean
+  SBConfig ..> "Azure Service Bus Conn String" : reads from properties
+
+  ' Inter-component dependencies
+  TxRequestDTO <.. Controller : used in @RequestBody
+  TxNotification <.. NotifService : created by NotifService
+  TxNotification <.. NotifProcessor : consumed by NotifProcessor
+  Models <.. AccountRepo : managed by repository ' Corrected from Models <.. Repo
+  Models <.. TxService : manipulated by service
+  TxTypeEnum <.. TxService : used for transaction types
+  TxTypeEnum <.. TxNotification : used for type in DTO
+
+  ' Shared infrastructure components
+  ObjMapper <.. NotifService : for serialization
+  ObjMapper <.. NotifProcessor : for deserialization
+
 }
 
+cloud "External Services (Azure)" {
+  queue "Azure Service Bus Queue" as SBQueue
+  database "Relational Database" as DB
+}
 
-[Another Component] --> [Example 1]
-[Example 1] --> [Folder 3]
-[Folder 3] --> [Frame 4]
+actor "Client Application" as ClientApp
 
+ClientApp .right.> Controller : HTTP(S) API Calls (JSON)
+SBSenderClient .right.> SBQueue : Sends messages (JSON)
+SBQueue .left.> SBProcessorBuilder : Receives messages (JSON)
+AccountRepo .down.> DB : JPA / JDBC
+
+legend bottom
+  **Components**: Logical software units.
+  **Arrows**:
+    - Solid: Direct dependency/call.
+    - Dashed: Used by, but not a direct object dependency (e.g., DTOs).
+    - Orange Dashed: Indicates a Spring @Bean provision.
+  **Stereotypes**: `<<Spring Service>>`, `<<Spring RestController>>`, `<<Spring Data JPA Repository>>` etc., denote Spring roles.
+end legend
 @enduml

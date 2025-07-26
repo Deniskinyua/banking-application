@@ -1,24 +1,57 @@
 @startuml
-'https://plantuml.com/state-diagram
+state "Transaction Lifecycle" as TransactionLifecycle {
+  state Created
+  state PendingValidation
+  state Validated
+  state Debited
+  state Credited
+  state Completed
+  state Failed
+  state NotificationSent
 
-scale 350 width
-[*] --> NotShooting
+  [*] --> Created : New TransactionRequestDTO
 
-state NotShooting {
-  [*] --> Idle
-  Idle --> Configuring : EvConfig
-  Configuring --> Idle : EvConfig
-}
+  Created --> PendingValidation : Request received by service
 
-state Configuring {
-  [*] --> NewValueSelection
-  NewValueSelection --> NewValuePreview : EvNewValue
-  NewValuePreview --> NewValueSelection : EvNewValueRejected
-  NewValuePreview --> NewValueSelection : EvNewValueSaved
+  PendingValidation --> Validated : Business logic validated
+  PendingValidation --> Failed : Validation fails (e.g., Insufficient Funds, Limit Exceeded)
 
-  state NewValuePreview {
-     State1 -> State2
+  Validated --> Debited : Sender account debited
+  Debited --> Credited : Recipient account credited
+  Credited --> Completed : Accounts saved to DB
+
+  Completed --> NotificationSent : Notification sent to Queue (asynchronous)
+  NotificationSent --> [*] : Notification acknowledged by processor
+
+  Credited --> Failed : DB save fails (Transaction Rollback)
+
+  Failed --> [*] : Error handled, transaction aborted
+
+  ' State for message processing within Azure Service Bus
+  state "Message Processing States" as MessageProcessing {
+    state "Enqueued in SB" as SB_ENQUEUED
+    state "Received by Processor" as SB_RECEIVED
+    state "Deserialized" as SB_DESERIALIZED
+    state "Processed (Printed)" as SB_PROCESSED
+    state "Acknowledged (Complete)" as SB_ACKNOWLEDGED
+    state "Dead-Lettered" as SB_DEADLETTERED
+    state "Abandoned (Re-queued)" as SB_ABANDONED
+
+    SB_ENQUEUED --> SB_RECEIVED : Message consumed by processor
+    SB_RECEIVED --> SB_DESERIALIZED : Successfully read body
+    SB_DESERIALIZED --> SB_PROCESSED : Successfully converted to DTO
+    SB_PROCESSED --> SB_ACKNOWLEDGED : context.complete()
+
+    SB_DESERIALIZED --> SB_DEADLETTERED : JSON deserialization fails
+    SB_RECEIVED --> SB_ABANDONED : Other processing error / context.abandon()
+
+    SB_DEADLETTERED --> [*] : Manual intervention / monitoring
+    SB_ABANDONED --> SB_ENQUEUED : Message re-appears in queue
+
+    SB_ACKNOWLEDGED --> [*] : Message removed from queue
   }
 
+  NotificationSent -left-> SB_ENQUEUED : Queued in Azure Service Bus
 }
+
 @enduml

@@ -1,30 +1,58 @@
 @startuml
-'https://plantuml.com/deployment-diagram
+skinparam nodeComponentStyle cloud
 
-actor actor
-actor/ "actor/"
-agent agent
-artifact artifact
-boundary boundary
-card card
-circle circle
-cloud cloud
-collections collections
-component component
-control control
-database database
-entity entity
-file file
-folder folder
-frame frame
-interface interface
-label label
-node node
-package package
-queue queue
-rectangle rectangle
-stack stack
-storage storage
-usecase usecase
-usecase/ "usecase/"
+node "Client Devices" {
+  artifact "Web Browser" as Browser
+  artifact "Mobile App" as Mobile
+}
+
+node "Cloud Environment (e.g., Azure)" as AzureCloud {
+
+  node "Backend Application Servers" as AppServers {
+    artifact "Banking Backend Application" as BackendApp {
+      component "Transaction Controller"
+      component "Transaction Service"
+      component "Account Repository"
+      component "Notification Service"
+      component "Notification Processor"
+      component "Service Bus Config"
+      component "Models, DTOs, Enums, Utils"
+    }
+  }
+
+  node "Database Server" as DbServer {
+    database "Relational Database\n(Azure SQL Database / PostgreSQL)" as DBInstance
+  }
+
+  node "Messaging Service" as MessagingService {
+    cloud "Azure Service Bus Queue" as ServiceBusQueue
+  }
+
+  node "Monitoring & Logging" as MonitoringNode {
+    component "Application Logs (Azure Monitor/Log Analytics)" as AppLogs
+    component "Metrics (Azure Monitor)" as AppMetrics
+  }
+}
+
+Browser ..> "Internet"
+Mobile ..> "Internet"
+"Internet" ..> AppServers : HTTPS
+
+AppServers --> DbServer : JDBC/Database Connection
+AppServers --> MessagingService : Azure Service Bus SDK (AMQP/HTTPS)
+
+MessagingService --> AppServers : Azure Service Bus SDK (AMQP/HTTPS)
+
+AppServers --> MonitoringNode : Logs and Metrics push
+
+DBInstance -- AppLogs : Database Logs
+ServiceBusQueue -- AppLogs : Service Bus Logs
+
+artifact "Swagger UI" as Swagger
+AppServers -- Swagger : Hosts API Documentation
+
+legend bottom
+  This diagram shows where the software components run physically.
+  Deployment could be on Azure App Service, VMs, Kubernetes (AKS), etc.
+end legend
 @enduml

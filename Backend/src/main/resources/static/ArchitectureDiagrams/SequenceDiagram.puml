@@ -1,11 +1,154 @@
 @startuml
-'https://plantuml.com/sequence-diagram
-
 autonumber
+actor "Client" as C
+participant "TransactionController" as TC
+participant "TransactionService" as TS
+participant "AccountRepository" as AR
+participant "Database" as DB
+participant "TransactionIdGenerator" as TIG
+participant "NotificationService" as NS
+participant "MessageFormatter" as MF
+participant "ObjectMapper" as OM
+participant "ServiceBusSenderClient" as SB_SENDER
+box "Azure Service Bus" #LightBlue
+  participant "Queue" as SB_Q
+end box
+participant "ServiceBusProcessorClient" as SB_PROCESSOR
+participant "NotificationProcessor" as NP
 
-Alice -> Bob: Authentication Request
-Bob --> Alice: Authentication Response
+C -> TC: POST /api/transactions/transfer (TransactionRequestDTO)
+activate TC
+TC -> TC: Validate @Valid TransactionRequestDTO
+alt Validation Fails
+  TC --> C: 400 Bad Request (Validation Error)
+else Validation Success
+  TC -> TS: transferFunds(request)
+  activate TS
+  TS -> AR: findByCustomerId(fromUserId)
+  activate AR
+  AR -> DB: SELECT * FROM Account WHERE customerId = fromUserId
+  activate DB
+  DB --> AR: Account (Sender)
+  deactivate DB
+  AR --> TS: Optional<Account> (Sender)
+  deactivate AR
 
-Alice -> Bob: Another authentication Request
-Alice <-- Bob: another authentication Response
+  TS -> AR: findByCustomerId(toUserId)
+  activate AR
+  AR -> DB: SELECT * FROM Account WHERE customerId = toUserId
+  activate DB
+  DB --> AR: Account (Receiver)
+  deactivate DB
+  AR --> TS: Optional<Account> (Receiver)
+  deactivate AR
+
+  TS -> TS: Check for self-transfer
+  alt Self-transfer
+    TS --> TS: Throw IllegalArgumentException
+    TS --> TC: Exception (IllegalArgumentException)
+    deactivate TS
+    TC --> C: 400 Bad Request
+  else Not Self-transfer
+    TS -> TS: validateTransaction(fromAccount, amount)
+    alt Validation Fails (InsufficientBalance/LimitExceeded)
+      TS --> TS: Throw InsufficientBalanceException/LimitExceededException
+      TS --> TC: Exception
+      deactivate TS
+      TC --> C: 400 Bad Request
+    else Validation Success
+      TS -> TIG: generate()
+      activate TIG
+      TIG --> TS: transactionId: String
+      deactivate TIG
+
+      TS -> TS: Update Sender Account Balance, Daily Amount, Limit
+      TS -> TS: Create Debit Transaction object
+      TS -> TS: Add Debit Transaction to Sender Account
+      TS -> AR: save(fromAccount)
+      activate AR
+      AR -> DB: UPDATE Account, INSERT Transaction (Sender)
+      activate DB
+      DB --> AR: OK
+      deactivate DB
+      AR --> TS: Saved Sender Account
+      deactivate AR
+
+      TS -> TS: Update Receiver Account Balance
+      TS -> TS: Create Credit Transaction object
+      TS -> TS: Add Credit Transaction to Receiver Account
+      TS -> AR: save(toAccount)
+      activate AR
+      AR -> DB: UPDATE Account, INSERT Transaction (Receiver)
+      activate DB
+      DB --> AR: OK
+      deactivate DB
+      AR --> TS: Saved Receiver Account
+      deactivate AR
+
+      TS -> NS: sendTransferNotifications(transactionId, sender, recipient, amount)
+      activate NS
+      NS -> MF: formatSenderMessage(...)
+      activate MF
+      MF --> NS: senderMessage: String
+      deactivate MF
+      NS -> NS: createNotification(sender details)
+      NS -> OM: writeValueAsString(senderNotification)
+      activate OM
+      OM --> NS: senderJson: String
+      deactivate OM
+      NS -> SB_SENDER: sendMessage(new ServiceBusMessage(senderJson))
+      activate SB_SENDER
+      SB_SENDER -> SB_Q: send message
+      SB_Q --> SB_SENDER: OK
+      deactivate SB_SENDER
+      NS -> MF: formatRecipientMessage(...)
+      activate MF
+      MF --> NS: recipientMessage: String
+      deactivate MF
+      NS -> NS: createNotification(recipient details)
+      NS -> OM: writeValueAsString(recipientNotification)
+      activate OM
+      OM --> NS: recipientJson: String
+      deactivate OM
+      NS -> SB_SENDER: sendMessage(new ServiceBusMessage(recipientJson))
+      activate SB_SENDER
+      SB_SENDER -> SB_Q: send message
+      SB_Q --> SB_SENDER: OK
+      deactivate SB_SENDER
+      alt Notification Sending Fails (e.g., JsonProcessingException, ServiceBus connection error)
+        NS --> NS: log.error()
+        NS --> TS: Throw RuntimeException (caught by TS)
+        deactivate NS
+      else Notification Sending Success
+        deactivate NS
+      end
+
+      TS --> TC: Return (void)
+      deactivate TS
+      TC --> C: 200 OK
+    end
+  end
+deactivate TC
+
+group Asynchronous Notification Processing (Optional, concurrent)
+  SB_Q -> SB_PROCESSOR: Message Available
+  activate SB_PROCESSOR
+  SB_PROCESSOR -> NP: handleMessage(context)
+  activate NP
+  NP -> OM: readValue(messageBody, TransactionNotification.class)
+  activate OM
+  OM --> NP: notification: TransactionNotification
+  deactivate OM
+  NP -> NP: processNotification(notification) (i.e., print to console)
+  NP -> SB_PROCESSOR: context.complete() (acknowledge)
+  SB_PROCESSOR -> SB_Q: Acknowledge message completion
+  alt Deserialization/Processing Error
+    NP --> NP: log.error()
+    NP -> SB_PROCESSOR: context.deadLetter() / context.abandon()
+    SB_PROCESSOR -> SB_Q: Dead-letter / Re-queue message
+  end
+  deactivate NP
+  deactivate SB_PROCESSOR
+end
+
 @enduml

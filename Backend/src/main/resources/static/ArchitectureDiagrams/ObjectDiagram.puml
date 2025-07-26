@@ -1,16 +1,83 @@
 @startuml
-'https://plantuml.com/object-diagram
+hide methods
+skinparam classAttributeIconSize 0
 
-object London
-object Washington
-object Berlin
-object NewYork
-
-map CapitalCity {
- UK *-> London
- USA *--> Washington
- Germany *---> Berlin
+object "transactionRequest:TransactionRequestDTO" as req {
+  fromUserId = "sender123"
+  toUserId = "receiver456"
+  amount = 100.00
+  description = "Online Transfer"
 }
 
-NewYork --> CapitalCity::USA
+object "senderAccount:Account" as sa {
+  id = 1
+  accountNumber = "ACC001"
+  customerId = "sender123"
+  balance = 900.00
+  dailyTransactionLimit = 4900.00
+  dailyTransactionAmount = 100.00
+}
+
+object "receiverAccount:Account" as ra {
+  id = 2
+  accountNumber = "ACC002"
+  customerId = "receiver456"
+  balance = 600.00
+  dailyTransactionLimit = 5000.00
+  dailyTransactionAmount = 0.00
+}
+
+object "debitTx:Transaction" as dt {
+  transactionId = "TRANS_12345"
+  transactionType = TRANSFER_OUT
+  amount = -100.00
+  description = "Transfer to Receiver User (receiver456)"
+  timestamp = 2025-07-25T08:50:00
+  balanceAfter = 900.00
+}
+
+object "creditTx:Transaction" as ct {
+  transactionId = "TRANS_12345"
+  transactionType = TRANSFER_IN
+  amount = 100.00
+  description = "Transfer from Sender User (sender123)"
+  timestamp = 2025-07-25T08:50:00
+  balanceAfter = 600.00
+}
+
+object "senderNotification:TransactionNotification" as sn {
+  transactionId = "TRANS_12345"
+  userId = "sender123"
+  message = "Debit of 100.00 for transfer to Receiver User. New Balance: 900.00"
+  timestamp = 2025-07-25T08:50:00
+  transactionType = "TRANSFER_OUT"
+  amount = 100.00
+  recipientName = "Receiver User"
+  senderName = "Sender User"
+}
+
+object "recipientNotification:TransactionNotification" as rn {
+  transactionId = "TRANS_12345"
+  userId = "receiver456"
+  message = "Credit of 100.00 from Sender User. New Balance: 600.00"
+  timestamp = 2025-07-25T08:50:00
+  transactionType = "TRANSFER_IN"
+  amount = 100.00
+  recipientName = "Receiver User"
+  senderName = "Sender User"
+}
+
+sa --* dt : transactions
+ra --* ct : transactions
+dt -- sa : account
+ct -- ra : account
+
+req .up.> sa : fromUserId
+req .up.> ra : toUserId
+
+sn ..> sa : userId refers to
+rn ..> ra : userId refers to
+sn .left.> dt : transactionId refers to
+rn .left.> ct : transactionId refers to
+
 @enduml

@@ -1,27 +1,251 @@
 @startuml
-'https://plantuml.com/class-diagram
+skinparam linetype ortho
 
-abstract class AbstractList
-abstract AbstractCollection
-interface List
-interface Collection
-
-List <|-- AbstractList
-Collection <|-- AbstractCollection
-
-Collection <|- List
-AbstractCollection <|- AbstractList
-AbstractList <|-- ArrayList
-
-class ArrayList {
-Object[] elementData
-size()
+' Enums
+package com.banking.backend.enums {
+  enum TransactionType {
+    DEPOSIT
+    WITHDRAWAL
+    TRANSFER_IN
+    TRANSFER_OUT
+  }
 }
 
-enum TimeUnit {
-DAYS
-HOURS
-MINUTES
+' DTOs
+package com.banking.backend.dto {
+  class TransactionRequestDTO {
+    - fromUserId: String
+    - toUserId: String
+    - amount: BigDecimal
+    - description: String
+    + getFromUserId(): String
+    + setToUserId(String)
+    + getToUserId(): String
+    + setToUserId(String)
+    + getAmount(): BigDecimal
+    + setAmount(BigDecimal)
+    + getDescription(): String
+    + setDescription(String)
+  }
+
+  class TransactionNotification {
+    - transactionId: String
+    - userId: String
+    - message: String
+    - timestamp: LocalDateTime
+    - transactionType: String
+    - amount: BigDecimal
+    - recipientName: String
+    - senderName: String
+    + getTransactionId(): String
+    + setTransactionId(String)
+    + getUserId(): String
+    + setUserId(String)
+    + getMessage(): String
+    + setMessage(String)
+    + getTimestamp(): LocalDateTime
+    + setTimestamp(LocalDateTime)
+    + getTransactionType(): String
+    + setTransactionType(String)
+    + getAmount(): BigDecimal
+    + setAmount(BigDecimal)
+    + getRecipientName(): String
+    + setRecipientName(String)
+    + getSenderName(): String
+    + setSenderName(String)
+  }
 }
+
+' Models (Entities)
+package com.banking.backend.model {
+  class Account <<Entity>> {
+    - id: Long
+    - accountNumber: String
+    - customerName: String
+    - customerId: String
+    - balance: BigDecimal
+    - dailyTransactionLimit: BigDecimal
+    - dailyTransactionAmount: BigDecimal
+    --
+    + addTransaction(Transaction)
+    ' Lombok generates getters/setters implicitly, but including for clarity
+    + getBalance(): BigDecimal
+    + setBalance(BigDecimal)
+    + getDailyTransactionAmount(): BigDecimal
+    + setDailyTransactionAmount(BigDecimal)
+    + getDailyTransactionLimit(): BigDecimal
+    + setDailyTransactionLimit(BigDecimal)
+    + getTransactions(): List<Transaction>
+  }
+
+  class Transaction <<Entity>> {
+    - transactionId: String
+    - transactionType: TransactionType
+    - amount: BigDecimal
+    - description: String
+    - timestamp: LocalDateTime
+    - balanceAfter: BigDecimal
+    --
+    + onCreate() : <<PrePersist>>
+    ' Lombok generates getters/setters implicitly, but including for clarity
+    + getTransactionId(): String
+    + getTransactionType(): TransactionType
+    + getAmount(): BigDecimal
+    + getTimestamp(): LocalDateTime
+    + getBalanceAfter(): BigDecimal
+  }
+
+  Account "1" *-- "0..*" Transaction : transactions >
+  Transaction "*-" o-- "1" Account : account
+}
+
+' Repositories
+package com.banking.backend.repository {
+  interface AccountRepository <<Repository>> {
+    + findByCustomerId(String): Optional<Account>
+  }
+  JpaRepository <|-- AccountRepository
+  AccountRepository ..> Account
+}
+
+' Services
+package com.banking.backend.service {
+  interface ITransactionService <<Interface>>
+  interface INotificationService <<Interface>>
+
+  class TransactionService <<Service>> {
+    - accountRepository: AccountRepository
+    - notificationService: NotificationService
+    --
+    + transferFunds(TransactionRequestDTO): void
+    - validateTransaction(Account, BigDecimal): void
+    - createTransaction(String, TransactionType, BigDecimal, String, LocalDateTime, BigDecimal): Transaction
+  }
+
+  class NotificationService <<Service>> {
+    - messageFormatter: MessageFormatter
+    - serviceBusSenderClient: ServiceBusSenderClient
+    - objectMapper: ObjectMapper
+    - queueName: String
+    --
+    + sendTransferNotifications(String, Account, Account, BigDecimal): void
+    - sendNotificationToQueue(TransactionNotification): void
+    - createNotification(String, String, String, LocalDateTime, String, BigDecimal, String, String): TransactionNotification
+  }
+
+  ITransactionService <|.. TransactionService
+  INotificationService <|.. NotificationService
+
+  TransactionService ..> AccountRepository
+  TransactionService ..> NotificationService
+  TransactionService ..> TransactionRequestDTO
+  TransactionService ..> Account
+  TransactionService ..> Transaction
+  TransactionService ..> TransactionType
+  TransactionService ..> GlobalExceptionHandler
+
+  NotificationService ..> MessageFormatter
+  NotificationService ..> ServiceBusSenderClient
+  NotificationService ..> ObjectMapper
+  NotificationService ..> TransactionNotification
+  NotificationService ..> TransactionType
+  NotificationService ..> Account
+
+}
+
+' Controllers
+package com.banking.backend.controller {
+  class TransactionController <<RestController>> {
+    - transactionService: TransactionService
+    --
+    + transferFunds(TransactionRequestDTO): ResponseEntity<Void>
+  }
+  TransactionController ..> TransactionService
+  TransactionController ..> TransactionRequestDTO
+  TransactionController ..> GlobalExceptionHandler
+}
+
+' Azure Message Listener
+package com.banking.backend.azure.messagelistener {
+  class NotificationProcessor <<Component>> {
+    - serviceBusProcessorClientBuilder: ServiceBusClientBuilder.ServiceBusProcessorClientBuilder
+    - objectMapper: ObjectMapper
+    - serviceBusProcessorClient: ServiceBusProcessorClient
+    --
+    + startListening(): void <<PostConstruct>>
+    + handleMessage(ServiceBusReceivedMessageContext): void
+    + handleError(ServiceBusErrorContext): void
+    - processNotification(TransactionNotification): void
+    + stopListening(): void <<PreDestroy>>
+  }
+  NotificationProcessor ..> ServiceBusClientBuilder.ServiceBusProcessorClientBuilder
+  NotificationProcessor ..> ObjectMapper
+  NotificationProcessor ..> ServiceBusReceivedMessageContext
+  NotificationProcessor ..> ServiceBusErrorContext
+  NotificationProcessor ..> TransactionNotification
+}
+
+' Configuration
+package com.banking.backend.config.servicebusconfig {
+  class ServiceBusConfig <<Configuration>> {
+    - connectionString: String
+    - queueName: String
+    --
+    + serviceBusSenderClient(): ServiceBusSenderClient <<Bean>>
+    + serviceBusReceiverClient(): ServiceBusReceiverClient <<Bean>>
+    + serviceBusProcessorClientBuilder(): ServiceBusClientBuilder.ServiceBusProcessorClientBuilder <<Bean>>
+    + objectMapper(): ObjectMapper <<Bean>>
+  }
+  ServiceBusConfig ..> ServiceBusSenderClient
+  ServiceBusConfig ..> ServiceBusReceiverClient
+  ServiceBusConfig ..> ServiceBusClientBuilder.ServiceBusProcessorClientBuilder
+  ServiceBusConfig ..> ObjectMapper
+}
+
+' Utilities (Inferred/Provided)
+package com.banking.backend.util {
+  class TransactionIdGenerator <<Utility>> {
+    + {static} generate(): String
+  }
+  class MessageFormatter <<Utility>> {
+    + formatSenderMessage(String, BigDecimal, String, BigDecimal, LocalDateTime): String
+    + formatRecipientMessage(String, BigDecimal, String, BigDecimal, LocalDateTime): String
+  }
+  TransactionService ..> TransactionIdGenerator
+  NotificationService ..> MessageFormatter
+}
+
+' Global Exception Handlers (Inferred from usage)
+package com.banking.backend.GlobalExceptationHandlers {
+  class GlobalExceptionHandler <<ControllerAdvice>>
+  class InsufficientBalanceException <<Exception>>
+  class LimitExceededException <<Exception>>
+
+  Exception <|-- InsufficientBalanceException
+  Exception <|-- LimitExceededException
+}
+
+' External/Framework Classes (Simplified for diagram clarity)
+class JpaRepository <<Spring Data JPA>>
+class ResponseEntity <<Spring Web>>
+class ServiceBusSenderClient <<Azure SDK>>
+class ServiceBusReceiverClient <<Azure SDK>>
+class ServiceBusProcessorClient <<Azure SDK>>
+class ServiceBusClientBuilder <<Azure SDK>>
+class ServiceBusReceivedMessageContext <<Azure SDK>>
+class ServiceBusErrorContext <<Azure SDK>>
+class ObjectMapper <<Jackson>>
+class Logger <<SLF4J>>
+class ServiceBusProcessorClientBuilder <<Azure SDK>>
+
+TransactionRequestDTO ..> jakarta.validation.constraints.NotBlank
+TransactionRequestDTO ..> jakarta.validation.constraints.NotNull
+TransactionRequestDTO ..> jakarta.validation.constraints.DecimalMin
+
+' Link Beans with where they are provided
+ServiceBusConfig .right.> ServiceBusSenderClient : provides
+ServiceBusConfig .right.> ServiceBusReceiverClient : provides
+ServiceBusConfig .right.> ServiceBusProcessorClientBuilder : provides
+ServiceBusConfig .right.> ObjectMapper : provides
 
 @enduml
