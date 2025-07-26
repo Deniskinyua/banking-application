@@ -1,4 +1,4 @@
-package com.banking.backend.service;
+package com.banking.backend.service.interfaces;
 
 import com.banking.backend.dto.TransactionRequestDTO;
 

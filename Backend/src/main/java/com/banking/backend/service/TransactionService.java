@@ -7,6 +7,7 @@ import com.banking.backend.enums.TransactionType;
 import com.banking.backend.model.Account;
 import com.banking.backend.model.Transaction;
 import com.banking.backend.repository.AccountRepository;
+import com.banking.backend.service.interfaces.ITransactionService;
 import com.banking.backend.util.TransactionIdGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +89,7 @@ public class TransactionService implements ITransactionService {
         fromAccount.setDailyTransactionAmount(
                 fromAccount.getDailyTransactionAmount().add(request.getAmount())
         );
+        fromAccount.setDailyTransactionLimit(fromAccount.getDailyTransactionLimit().subtract(request.getAmount()));
 
         Transaction debitTransaction = createTransaction(transactionId,
                 TransactionType.TRANSFER_OUT, request.getAmount().negate(),
@@ -159,7 +161,7 @@ public class TransactionService implements ITransactionService {
      * @throws InsufficientBalanceException If the account's balance is less than the transaction amount.
      * @throws LimitExceededException If the transaction amount would cause the account's daily limit to be exceeded.
      */
-    private void validateTransaction(Account account, BigDecimal amount) throws InsufficientBalanceException, LimitExceededException {
+    private void validateTransaction(Account account, BigDecimal amount){
         if (account.getBalance().compareTo(amount) < 0) {
             throw new InsufficientBalanceException("Insufficient Balance");
         }
