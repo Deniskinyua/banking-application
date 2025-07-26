@@ -1,28 +1,24 @@
 package com.banking.backend.dto;
 
 import lombok.Data;
-import lombok.NoArgsConstructor; // Added NoArgsConstructor for Jackson deserialization
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@NoArgsConstructor // Essential for Jackson to create an instance during deserialization
+@NoArgsConstructor
 public class TransactionNotification implements Serializable {
-    private static final long serialVersionUID = 1L; // Recommended for Serializable classes
+    private static final long serialVersionUID = 1L;
     private String transactionId;
     private String userId;
     private String message;
     private LocalDateTime timestamp;
-    private String transactionType; // E.g., "DEBIT", "CREDIT" for clarity
+    private String transactionType;
     private BigDecimal amount;
     private String recipientName;
     private String senderName;
-
-    // Consider adding a constructor for convenience,
-    // if you frequently create these objects with all fields.
-    // public TransactionNotification(String transactionId, String userId, ...) { ... }
 
     public String getTransactionId() {
         return transactionId;

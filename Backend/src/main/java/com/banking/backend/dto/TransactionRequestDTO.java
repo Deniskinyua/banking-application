@@ -3,7 +3,6 @@ package com.banking.backend.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
 import java.math.BigDecimal;
 
@@ -16,9 +15,9 @@ public class TransactionRequestDTO {
     private String toUserId;
 
     @NotNull(message = "Amount cannot be null")
-    @DecimalMin(value = "0.01", message = "Amount must be greater than zero") // Minimum transaction amount
+    @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
     private BigDecimal amount;
-    // Description can be optional, no @NotBlank or @NotNull needed unless required.
+
     private String description;
 
     public @NotBlank(message = "From user ID cannot be blank") String getFromUserId() {
