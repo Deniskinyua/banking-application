@@ -8,6 +8,7 @@ import lombok.ToString; // Added for better @Data behavior
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 
@@ -15,7 +16,6 @@ import java.time.LocalDateTime;
 @ToString(exclude = "account") // Exclude lazy-loaded parent from toString
 public class Transaction {
     @Id
-    @GeneratedValue
     private String transactionId; // Assuming transactionId is generated and unique
 
     @Enumerated(EnumType.STRING)
@@ -34,9 +34,19 @@ public class Transaction {
     @Column(nullable = false)
     private BigDecimal balanceAfter;
 
-    @ManyToOne(fetch = FetchType.LAZY) // Always lazy load ManyToOne
-    @JoinColumn(name = "account_id", nullable = false) // Ensure account_id is not null
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id", nullable = false)
     private Account account;
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.transactionId == null) {
+            this.transactionId = UUID.randomUUID().toString();
+        }
+        if (this.timestamp == null) {
+            this.timestamp = LocalDateTime.now();
+        }
+    }
 
     public String getTransactionId() {
         return transactionId;

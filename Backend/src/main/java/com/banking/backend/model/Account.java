@@ -11,30 +11,30 @@ import java.util.List;
 @Getter
 @Setter
 @Table(name = "Account")
-@EqualsAndHashCode(exclude = "transactions") // Exclude lazy-loaded collections from equals/hashCode
-@ToString(exclude = "transactions") // Exclude lazy-loaded collections from toString
+@EqualsAndHashCode(exclude = "transactions")
+@ToString(exclude = "transactions")
 public class Account {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false) // Add constraints
+    @Column(unique = true, nullable = false)
     private String accountNumber;
 
     private String customerName;
 
-    @Column(unique = true, nullable = false) // Add constraints
-    private String customerId; // Should be distinct from accountNumber if used as primary identifier
+    @Column(unique = true, nullable = false)
+    private String customerId;
 
     @Column(nullable = false)
-    private BigDecimal balance = BigDecimal.ZERO; // Initialize to zero
+    private BigDecimal balance = BigDecimal.ZERO;
 
     @Column(nullable = false)
-    private BigDecimal dailyTransactionLimit = BigDecimal.valueOf(500000.00); // Sensible default
+    private BigDecimal dailyTransactionLimit = BigDecimal.valueOf(500000.00);
 
     @Column(nullable = false)
-    private BigDecimal dailyTransactionAmount = BigDecimal.ZERO; // Initialize to zero
+    private BigDecimal dailyTransactionAmount = BigDecimal.ZERO;
 
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY) // Default to LAZY
     private List<Transaction> transactions = new ArrayList<>();
@@ -110,7 +110,4 @@ public class Account {
         transactions.add(transaction);
         transaction.setAccount(this);
     }
-
-    // You might want to add getters/setters for specific logic if @Data is too broad for JPA entities
-    // For example, if you want to control how balance is updated.
 }
