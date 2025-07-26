@@ -1,6 +1,6 @@
 package com.banking.backend.azure.messagelistener;
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder; // <-- ADD THIS IMPORT
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import com.azure.messaging.servicebus.ServiceBusProcessorClient;
 import com.azure.messaging.servicebus.ServiceBusErrorContext;
@@ -38,7 +38,6 @@ public class NotificationProcessor {
     @PostConstruct
     public void startListening() {
         log.info("Starting Service Bus Processor Client to listen for messages...");
-
         // Build the client here, providing handlers from this class instance
         this.serviceBusProcessorClient = serviceBusProcessorClientBuilder
                 .processMessage(this::handleMessage)
