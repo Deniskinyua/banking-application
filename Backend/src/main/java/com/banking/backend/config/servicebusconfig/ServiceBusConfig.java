@@ -1,6 +1,9 @@
 package com.banking.backend.config.servicebusconfig;
 
+import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
+import com.azure.messaging.servicebus.ServiceBusClientBuilder.ServiceBusProcessorClientBuilder;
+
 import com.azure.messaging.servicebus.ServiceBusProcessorClient; // Still import if you use ServiceBusClientBuilder.processor()
 import com.azure.messaging.servicebus.ServiceBusReceiverClient;
 import com.azure.messaging.servicebus.ServiceBusSenderClient;
@@ -41,13 +44,11 @@ public class ServiceBusConfig {
 
     // NEW BEAN: Provide the ServiceBusProcessorClientBuilder
     @Bean
-    public ServiceBusClientBuilder.ServiceBusProcessorClientBuilder serviceBusProcessorClientBuilder() {
+    public ServiceBusProcessorClientBuilder serviceBusProcessorClientBuilder() {
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
                 .processor()
                 .queueName(queueName);
-        // Do NOT call .processMessage(), .processError(), or .buildProcessorClient() here.
-        // These will be called in NotificationProcessor.
     }
 
     @Bean
