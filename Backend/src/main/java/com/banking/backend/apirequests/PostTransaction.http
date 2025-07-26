@@ -1,5 +1,10 @@
-### GET request to example server
-GET https://examples.http-client.intellij.net/get
-    ?generated-in=IntelliJ IDEA
+### POST Transaction Request
+POST http://localhost:8081/api/transactions/transfer
+Content-Type: application/
 
-###
+{
+  "fromUserId": "user123",
+  "toUserId": "user456",
+  "amount": 100.50,
+  "description": "Monthly allowance transfer"
+}
