@@ -20,21 +20,20 @@ import org.slf4j.LoggerFactory;
 public class NotificationProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationProcessor.class);
-
-    // Inject the Builder instead of the client
     private final ServiceBusClientBuilder.ServiceBusProcessorClientBuilder serviceBusProcessorClientBuilder;
     private final ObjectMapper objectMapper;
+    private ServiceBusProcessorClient serviceBusProcessorClient;
 
-    // The actual processor client instance
-    private ServiceBusProcessorClient serviceBusProcessorClient; // No longer final, initialized in @PostConstruct
-
-    // Manual constructor for dependency injection of the builder and ObjectMapper
     public NotificationProcessor(ServiceBusClientBuilder.ServiceBusProcessorClientBuilder serviceBusProcessorClientBuilder, ObjectMapper objectMapper) {
         this.serviceBusProcessorClientBuilder = serviceBusProcessorClientBuilder;
         this.objectMapper = objectMapper;
     }
 
-
+    /**
+     * Initializes and starts the Azure Service Bus Processor Client.
+     * This method is automatically called by Spring after the bean's construction and dependency injection are complete.
+     * It configures the message and error handlers and then starts listening for messages on the configured queue/topic.
+     */
     @PostConstruct
     public void startListening() {
         log.info("Starting Service Bus Processor Client to listen for messages...");
@@ -48,7 +47,16 @@ public class NotificationProcessor {
         log.info("Service Bus Processor Client started.");
     }
 
-    // --- Message Handling Logic ---
+    /**
+     * Handles a received message from Azure Service Bus.
+     * This method is invoked by the Service Bus Processor Client for each message received.
+     * It deserializes the message body into a {@link TransactionNotification} object,
+     * processes it, and then completes the message on the Service Bus.
+     * If deserialization fails, the message is dead-lettered. If any other error occurs during processing,
+     * the message is abandoned, making it available for re-delivery.
+     *
+     * @param context The {@link ServiceBusReceivedMessageContext} containing the received message and completion/abandonment controls.
+     */
     public void handleMessage(ServiceBusReceivedMessageContext context) {
         ServiceBusReceivedMessage message = context.getMessage();
         try {
@@ -58,28 +66,46 @@ public class NotificationProcessor {
             TransactionNotification notification = objectMapper.readValue(messageBody, TransactionNotification.class);
             processNotification(notification);
 
-            context.complete();
+            context.complete(); // Acknowledge successful processing to Service Bus
             log.info("Successfully processed and completed message for transaction ID: {}", notification.getTransactionId());
 
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // Log and dead-letter messages that cannot be deserialized, as retrying won't fix a malformed payload.
             log.error("Failed to deserialize message body to TransactionNotification. Message will be dead-lettered. Message body: {}", message.getBody().toString(), e);
             context.deadLetter();
         } catch (Exception e) {
+            // Log and abandon messages that cause other processing errors, allowing them to be retried by Service Bus.
             log.error("Error processing message from Service Bus. Message will be abandoned. Message body: {}. Sequence #{}", message.getBody().toString(), message.getSequenceNumber(), e);
             context.abandon();
         }
     }
 
-    // --- Error Handling Logic ---
+    /**
+     * Handles errors that occur during message processing by the Service Bus Processor Client.
+     * This method provides a centralized point for logging and reacting to Service Bus-related errors,
+     * such as connection issues, unauthorized access, or internal Service Bus errors.
+     *
+     * @param context The {@link ServiceBusErrorContext} providing details about the error,
+     * including the entity path, error source, and the exception itself.
+     */
     public void handleError(ServiceBusErrorContext context) {
         log.error("Error occurred while processing message from Service Bus. Entity path: {}, Error source: {}, Exception: {}",
                 context.getEntityPath(), context.getErrorSource(), context.getException());
     }
 
+    /**
+     * Processes the received {@link TransactionNotification}.
+     * This method contains the core business logic for handling a transaction notification.
+     * In a real application, this would involve more complex operations like updating a database,
+     * sending emails, or triggering other downstream services.
+     *
+     * @param notification The {@link TransactionNotification} object parsed from the Service Bus message.
+     */
     private void processNotification(TransactionNotification notification) {
         log.info("Starting processing for notification: {}", notification.getTransactionId());
         log.info("Notification details: Transaction ID: {}, User ID: {}, Message: {}",
                 notification.getTransactionId(), notification.getUserId(), notification.getMessage());
+        // System.out.println for immediate console output, typically replaced with a more robust notification system
         System.out.println("----**NEW NOTIFICATION**----");
         System.out.println("Transaction ID: " + notification.getTransactionId());
         System.out.println("User ID: " + notification.getUserId());
@@ -96,6 +122,12 @@ public class NotificationProcessor {
         System.out.println("-------------------------");
     }
 
+    /**
+     * Stops the Azure Service Bus Processor Client.
+     * This method is automatically called by Spring when the application context is gracefully shutting down.
+     * It ensures that the client releases its resources and stops listening for messages, preventing
+     * message loss or incomplete processing during shutdown.
+     */
     @PreDestroy
     public void stopListening() {
         if (serviceBusProcessorClient != null) {
