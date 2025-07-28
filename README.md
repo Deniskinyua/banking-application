@@ -34,19 +34,11 @@ This application follows a **layered architecture** (Controller, Service, Reposi
 
 For a detailed visual representation of the application's structure and flow, please refer to the following diagrams:
 
-* [**Class Diagram**](https://www.google.com/search?q=docs/class-diagram.puml)
-
 * [**Sequence Diagram (Fund Transfer)**](https://www.google.com/search?q=docs/sequence-diagram-fund-transfer.puml)
 
 * [**Component Diagram**](https://www.google.com/search?q=docs/component-diagram.puml)
 
-* [**Deployment Diagram**](https://www.google.com/search?q=docs/deployment-diagram.puml)
-
 * [**State Diagram (Transaction Lifecycle)**](https://www.google.com/search?q=docs/state-diagram-transaction.puml)
-
-* [**Timing Diagram (Fund Transfer)**](https://www.google.com/search?q=docs/timing-diagram-fund-transfer.puml)
-
-* [**Overall System Architecture**](https://www.google.com/search?q=docs/overall-architecture.puml)
 
 *(Note: `.puml` files are PlantUML source code. You'll need a PlantUML renderer (e.g., VS Code extension, IntelliJ plugin, or online tool) to view them as images.)*
 
