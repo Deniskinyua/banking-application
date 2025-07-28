@@ -40,8 +40,6 @@ For a detailed visual representation of the application's structure and flow, pl
 
 * [**State Diagram (Transaction Lifecycle)**](https://www.google.com/search?q=docs/state-diagram-transaction.puml)
 
-*(Note: `.puml` files are PlantUML source code. You'll need a PlantUML renderer (e.g., VS Code extension, IntelliJ plugin, or online tool) to view them as images.)*
-
 ## ️ Technologies Used
 
 * **Backend:**
