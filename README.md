@@ -1,4 +1,4 @@
-#  Banking Backend Application
+#  Cloud-Native Banking Backend Application with Azure
 
 A robust Spring Boot application designed to handle core banking functionalities, specifically focusing on secure and efficient fund transfers between user accounts. It incorporates asynchronous notification processing via Azure Service Bus for decoupled communication.
 
