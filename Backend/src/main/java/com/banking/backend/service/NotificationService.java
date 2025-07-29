@@ -1,6 +1,7 @@
 package com.banking.backend.service;
 
 import com.azure.messaging.servicebus.ServiceBusMessage;
+import com.azure.messaging.servicebus.ServiceBusSenderAsyncClient;
 import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import com.banking.backend.GlobalExceptationHandlers.NotificationSerializationException;
 import com.banking.backend.dto.TransactionNotification;
@@ -15,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,15 +34,17 @@ public class NotificationService implements INotificationService {
     private final MessageFormatter messageFormatter;
 
    //Azure Service Bus sender client for dispatching messages to the configured queue.
-    private final ServiceBusSenderClient serviceBusSenderClient;
+    private final ServiceBusSenderAsyncClient serviceBusSenderAsyncClient;
+    private final ServiceBusSenderAsyncClient failedNotificationSenderAsyncClient;
     private final ObjectMapper objectMapper;
-    @Value("${azure.servicebus.queue-name}")
+    @Value("${azure.servicebus.transaction-queue-name}")
     private String queueName;
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
-    public NotificationService(MessageFormatter messageFormatter, ServiceBusSenderClient serviceBusSenderClient, ObjectMapper objectMapper) {
+    public NotificationService(MessageFormatter messageFormatter, ServiceBusSenderAsyncClient serviceBusSenderAsyncClient, ServiceBusSenderAsyncClient failedNotificationSenderAsyncClient, ObjectMapper objectMapper) {
         this.messageFormatter = messageFormatter;
-        this.serviceBusSenderClient = serviceBusSenderClient;
+        this.serviceBusSenderAsyncClient = serviceBusSenderAsyncClient;
+        this.failedNotificationSenderAsyncClient = failedNotificationSenderAsyncClient;
         this.objectMapper = objectMapper;
     }
 
@@ -75,16 +79,12 @@ public class NotificationService implements INotificationService {
     }
 
     /**
-     * Internal helper method to send a single {@link TransactionNotification} object to the
-     * configured Azure Service Bus queue. This method handles JSON serialization and delegates
-     * message sending to the {@link ServiceBusSenderClient}.
-     *
-     * <p>The {@code serviceBusSenderClient} is expected to have built-in retry logic (e.g., exponential backoff)
-     * configured by Spring Cloud Azure for transient errors. Therefore, explicit retry loops are not
-     * implemented here for network/service-related issues.</p>
+     * Asynchronously sends a {@link TransactionNotification} to the primary Azure Service Bus queue.
+     * This method leverages the non-blocking {@link ServiceBusSenderAsyncClient} and
+     * includes a robust error handling mechanism with a fallback to a dedicated dead-letter queue.
      */
     private void sendNotificationToQueue(TransactionNotification notification) {
-        if (serviceBusSenderClient == null) {
+        if (serviceBusSenderAsyncClient == null) {
             log.error("CRITICAL ERROR: ServiceBusSenderClient is not initialized. Cannot send notification for transaction ID: {}", notification.getTransactionId());
             throw new IllegalStateException("ServiceBusSenderClient is not initialized. Application is misconfigured or in an invalid state.");
         }
@@ -95,18 +95,37 @@ public class NotificationService implements INotificationService {
             // Set the correlation ID for traceability in Service Bus.
             message.setCorrelationId(notification.getTransactionId());
 
-            serviceBusSenderClient.sendMessage(message);
+            serviceBusSenderAsyncClient.sendMessage(message)
+                            .doOnSuccess(aVoid -> {
+                                log.info("Sent notification to Service Bus queue '{}' for transaction ID: {} message ID: {}", queueName, notification.getTransactionId(), message.getMessageId());
+                            })
+                             .onErrorResume(error -> {
+                                 log.error("CRITICAL ERROR: Failed to send message to Azure Service Bus queue '{}' for transaction ID: {} AFTER ALL RETRIES. Notification data: {}",
+                                         queueName, notification.getTransactionId(), notification, error);
 
-            log.info("Sent notification to Service Bus queue '{}' for transaction ID: {} message ID: {}", queueName, notification.getTransactionId(), message.getMessageId());
-            log.debug("Full message sent: {}", jsonNotification);
+                                 return Mono.defer(() ->{
+                                     try{
+                                         ServiceBusMessage deadLetterMessage = new ServiceBusMessage(jsonNotification);
+                                         deadLetterMessage.setCorrelationId(notification.getTransactionId());
+                                         deadLetterMessage.getApplicationProperties().put("failureReason", error.getMessage());
+
+                                         return failedNotificationSenderAsyncClient.sendMessage(deadLetterMessage)
+                                                 .doOnSuccess(inform -> log.info("Moved failed notification for transaction ID: {} to failed-notifications-queue", notification.getTransactionId()))
+                                                 .doOnError(deadLetterQueueError -> log.error("CRITICAL ERROR:  Failed to send message to DEAD LETTER QUEUE for transaction ID: {}. Data lost: {}", notification.getTransactionId(), notification, deadLetterQueueError))
+                                                 .then();
+
+
+                                     } catch (IllegalStateException deadLetterQueueError){
+                                         log.error("CRITICAL ERROR: Could not send failed notification to DEAD LETTER QUEUE for transaction ID: {}. Data lost: {}", notification.getTransactionId(), notification, deadLetterQueueError);
+                                         return Mono.empty();
+                                     }
+                                 });
+                             })
+                             .subscribe();
         } catch (JsonProcessingException e) {
             log.error("ERROR: Failed to serialize TransactionNotification to JSON for transaction ID: {}. Notification data: {}",
                     notification.getTransactionId(), notification, e);
             throw new NotificationSerializationException("Failed to serialize notification for transaction ID: " + notification.getTransactionId(), e);
-        } catch (Exception e) {
-            log.error("CRITICAL ERROR: Failed to send message to Azure Service Bus queue '{}' for transaction ID: {} AFTER ALL RETRIES. Notification data: {}",
-                    queueName, notification.getTransactionId(), notification, e);
-            throw new RuntimeException("Failed to send notification to Azure Service Bus for transaction ID: " + notification.getTransactionId(), e);
         }
     }
 
