@@ -33,6 +33,7 @@ This application follows a **layered architecture** (Controller, Service, Reposi
 * **Messaging Layer (`NotificationProcessor`, Azure Service Bus):** Handles asynchronous message queuing and consumption for notifications, ensuring the core financial transaction is not blocked by notification delivery.
 
 For a detailed visual representation of the application's structure and flow, please refer to the following diagrams:
+* ![**Activity Diagram**](https://github.com/Deniskinyua/banking-application/tree/main/Backend/src/main/resources/static/ArchitectureDiagrams/ActivityDiagram-Fund_Transfer_Process.png?raw=true)
 
 * ![**Sequence Diagram**](https://github.com/Deniskinyua/banking-application/tree/main/Backend/src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png?raw=true)
 
