@@ -34,7 +34,7 @@ This application follows a **layered architecture** (Controller, Service, Reposi
 
 For a detailed visual representation of the application's structure and flow, please refer to the following diagrams:
 
-* ![Sequence Diagram](src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png)
+* ![alt text](https://github.com/Deniskinyua/banking-application/tree/main/Backend/src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png?raw=true)
 * [<img src="./src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png">]
 
 * [**Component Diagram**]()
