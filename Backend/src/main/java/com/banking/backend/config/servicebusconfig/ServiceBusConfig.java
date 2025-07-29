@@ -1,12 +1,9 @@
 package com.banking.backend.config.servicebusconfig;
 
 import com.azure.identity.DefaultAzureCredentialBuilder;
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
+import com.azure.messaging.servicebus.*;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder.ServiceBusProcessorClientBuilder;
 
-import com.azure.messaging.servicebus.ServiceBusProcessorClient; // Still import if you use ServiceBusClientBuilder.processor()
-import com.azure.messaging.servicebus.ServiceBusReceiverClient;
-import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -22,33 +19,43 @@ public class ServiceBusConfig {
 
     @Value("${azure.servicebus.queue-name}")
     private String queueName;
+    @Value("${azure.servicebus.failed-transactions-queue}")
+    private  String failedTransactionQueueName;
 
     @Bean
-    public ServiceBusSenderClient serviceBusSenderClient() {
+    public ServiceBusSenderAsyncClient serviceBusSenderAsyncClient() {
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
                 .sender()
                 .queueName(queueName)
-                .buildClient();
+                .buildAsyncClient();
     }
 
     @Bean
-    public ServiceBusReceiverClient serviceBusReceiverClient() {
+    public ServiceBusReceiverAsyncClient serviceBusReceiverAsyncClient() {
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
                 .receiver()
                 .queueName(queueName)
                 .disableAutoComplete()
-                .buildClient();
+                .buildAsyncClient();
     }
 
-    // NEW BEAN: Provide the ServiceBusProcessorClientBuilder
     @Bean
     public ServiceBusProcessorClientBuilder serviceBusProcessorClientBuilder() {
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
                 .processor()
                 .queueName(queueName);
+    }
+
+    @Bean
+    public ServiceBusSenderAsyncClient failedNotificationSenderAsyncClient(String failedTransactionQueueName){
+        return new ServiceBusClientBuilder()
+                .connectionString(connectionString)
+                .sender()
+                .queueName(failedTransactionQueueName)
+                .buildAsyncClient();
     }
 
     @Bean
