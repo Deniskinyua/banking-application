@@ -34,11 +34,11 @@ This application follows a **layered architecture** (Controller, Service, Reposi
 
 For a detailed visual representation of the application's structure and flow, please refer to the following diagrams:
 
-* [**Sequence Diagram (Fund Transfer)**](https://www.google.com/search?q=docs/sequence-diagram-fund-transfer.puml)
+* [**Sequence Diagram (Fund Transfer)**]()
 
-* [**Component Diagram**](https://www.google.com/search?q=docs/component-diagram.puml)
+* [**Component Diagram**]()
 
-* [**State Diagram (Transaction Lifecycle)**](https://www.google.com/search?q=docs/state-diagram-transaction.puml)
+* [**State Diagram (Transaction Lifecycle)**]()
 
 ## ️ Technologies Used
 
