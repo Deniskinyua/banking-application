@@ -34,7 +34,7 @@ This application follows a **layered architecture** (Controller, Service, Reposi
 
 For a detailed visual representation of the application's structure and flow, please refer to the following diagrams:
 
-* [**Sequence Diagram (Fund Transfer)**]()
+* [**Sequence Diagram (Fund Transfer)**](./src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png)
 
 * [**Component Diagram**]()
 
