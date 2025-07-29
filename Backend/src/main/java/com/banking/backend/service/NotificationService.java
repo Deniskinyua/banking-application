@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -54,8 +55,9 @@ public class NotificationService implements INotificationService {
      * and one for 'transfer in') and dispatches them individually to the Service Bus queue.
      */
     @Override // Good practice to explicitly state override for interface methods
+    @Async
     public void sendTransferNotifications(String transactionId, Account sender, Account recipient, BigDecimal amount) {
-        // Prepare and send notification for the sender (transfer out)
+        log.info("Asynchronously preparing and sending transfer notifications for transaction ID: {}", transactionId);
         String senderMessage = messageFormatter.formatSenderMessage(
                 transactionId, amount, recipient.getCustomerName(), sender.getBalance(), LocalDateTime.now()
         );
