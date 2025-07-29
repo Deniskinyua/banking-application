@@ -34,12 +34,11 @@ This application follows a **layered architecture** (Controller, Service, Reposi
 
 For a detailed visual representation of the application's structure and flow, please refer to the following diagrams:
 
-* ![alt text](https://github.com/Deniskinyua/banking-application/tree/main/Backend/src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png?raw=true)
-* [<img src="./src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png">]
+* ![**Sequence Diagram**](https://github.com/Deniskinyua/banking-application/tree/main/Backend/src/main/resources/static/ArchitectureDiagrams/SequenceDiagram.png?raw=true)
 
-* [**Component Diagram**]()
+* ![**Object Diagram**](https://github.com/Deniskinyua/banking-application/tree/main/Backend/src/main/resources/static/ArchitectureDiagrams/ObjectDiagram.png?raw=true)
 
-* [**State Diagram (Transaction Lifecycle)**]()
+* ![**State Diagram**](https://github.com/Deniskinyua/banking-application/tree/main/Backend/src/main/resources/static/ArchitectureDiagrams/StateDiagram.png?raw=true)
 
 ## ️ Technologies Used
 
