@@ -1,12 +1,12 @@
 package com.banking.backend.config.servicebusconfig;
 
-import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.messaging.servicebus.*;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder.ServiceBusProcessorClientBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +19,7 @@ public class ServiceBusConfig {
 
     @Value("${azure.servicebus.queue-name}")
     private String queueName;
+
     @Value("${azure.servicebus.failed-transactions-queue}")
     private  String failedTransactionQueueName;
 
@@ -50,7 +51,7 @@ public class ServiceBusConfig {
     }
 
     @Bean
-    public ServiceBusSenderAsyncClient failedNotificationSenderAsyncClient(String failedTransactionQueueName){
+    public ServiceBusSenderAsyncClient failedNotificationSenderAsyncClient(@Value("${azure.servicebus.failed-transactions-queue}")String failedTransactionQueueName){
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
                 .sender()
