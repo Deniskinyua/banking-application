@@ -2,7 +2,6 @@ package com.banking.backend.service;
 
 import com.azure.messaging.servicebus.ServiceBusMessage;
 import com.azure.messaging.servicebus.ServiceBusSenderAsyncClient;
-import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import com.banking.backend.GlobalExceptationHandlers.NotificationSerializationException;
 import com.banking.backend.dto.TransactionNotification;
 import com.banking.backend.enums.TransactionType;
@@ -29,12 +28,9 @@ import java.time.LocalDateTime;
  * for message transmission, leveraging its built-in retry mechanisms for transient errors.
  */
 @Service
-// @Slf4j // Uncomment this line if you prefer Lombok's logger injection over manual LoggerFactory.getLogger
 public class NotificationService implements INotificationService {
 
     private final MessageFormatter messageFormatter;
-
-   //Azure Service Bus sender client for dispatching messages to the configured queue.
     private final ServiceBusSenderAsyncClient serviceBusSenderAsyncClient;
     private final ServiceBusSenderAsyncClient failedNotificationSenderAsyncClient;
     private final ObjectMapper objectMapper;
@@ -54,7 +50,7 @@ public class NotificationService implements INotificationService {
      * This method constructs two distinct {@link TransactionNotification} objects (one for 'transfer out'
      * and one for 'transfer in') and dispatches them individually to the Service Bus queue.
      */
-    @Override // Good practice to explicitly state override for interface methods
+    @Override
     @Async
     public void sendTransferNotifications(String transactionId, Account sender, Account recipient, BigDecimal amount) {
         log.info("Asynchronously preparing and sending transfer notifications for transaction ID: {}", transactionId);
@@ -68,7 +64,6 @@ public class NotificationService implements INotificationService {
         );
         sendNotificationToQueue(senderNotification);
 
-        // Prepare and send notification for the recipient (transfer in)
         String recipientMessage = messageFormatter.formatRecipientMessage(
                 transactionId, amount, sender.getCustomerName(), recipient.getBalance(), LocalDateTime.now()
         );
@@ -94,7 +89,6 @@ public class NotificationService implements INotificationService {
         try {
             String jsonNotification = objectMapper.writeValueAsString(notification);
             ServiceBusMessage message = new ServiceBusMessage(jsonNotification);
-            // Set the correlation ID for traceability in Service Bus.
             message.setCorrelationId(notification.getTransactionId());
 
             serviceBusSenderAsyncClient.sendMessage(message)
