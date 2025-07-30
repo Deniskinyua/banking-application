@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,15 +67,13 @@ public class NotificationProcessor {
             TransactionNotification notification = objectMapper.readValue(messageBody, TransactionNotification.class);
             processNotification(notification);
 
-            context.complete(); // Acknowledge successful processing to Service Bus
+            context.complete();
             log.info("Successfully processed and completed message for transaction ID: {}", notification.getTransactionId());
 
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            // Log and dead-letter messages that cannot be deserialized, as retrying won't fix a malformed payload.
+        } catch (JsonProcessingException e) {
             log.error("Failed to deserialize message body to TransactionNotification. Message will be dead-lettered. Message body: {}", message.getBody().toString(), e);
             context.deadLetter();
         } catch (Exception e) {
-            // Log and abandon messages that cause other processing errors, allowing them to be retried by Service Bus.
             log.error("Error processing message from Service Bus. Message will be abandoned. Message body: {}. Sequence #{}", message.getBody().toString(), message.getSequenceNumber(), e);
             context.abandon();
         }
@@ -102,9 +101,9 @@ public class NotificationProcessor {
      * @param notification The {@link TransactionNotification} object parsed from the Service Bus message.
      */
     private void processNotification(TransactionNotification notification) {
-        log.info("Starting processing for notification: {}", notification.getTransactionId());
-        log.info("Notification details: Transaction ID: {}, User ID: {}, Message: {}",
-                notification.getTransactionId(), notification.getUserId(), notification.getMessage());
+        log.info("Starting processing for notification: {}, Notification details: Transaction ID: {}, User ID: {}, Message: {}",
+                notification.getTransactionId(), notification.getTransactionId(), notification.getUserId(), notification.getMessage());
+
         // System.out.println for immediate console output, typically replaced with a more robust notification system
         System.out.println("----**NEW NOTIFICATION**----");
         System.out.println("Transaction ID: " + notification.getTransactionId());
