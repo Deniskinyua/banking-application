@@ -8,8 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter
-@Setter
 @Table(name = "Account")
 @EqualsAndHashCode(exclude = "transactions")
 @ToString(exclude = "transactions")
