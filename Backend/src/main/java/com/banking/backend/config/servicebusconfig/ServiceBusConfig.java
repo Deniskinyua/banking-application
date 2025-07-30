@@ -16,7 +16,7 @@ public class ServiceBusConfig {
     @Value("${spring.cloud.azure.servicebus.connection-string}")
     private String connectionString;
 
-    @Value("${azure.servicebus.queue-name}")
+    @Value("${azure.servicebus.transaction-queue-name}")
     private String queueName;
 
     @Value("${azure.servicebus.failed-transactions-queue}")
