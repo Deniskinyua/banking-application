@@ -1,6 +1,6 @@
 ### POST Transaction Request
 POST http://localhost:8081/api/transactions/transfer
-Content-Type: application/
+Content-Type: application/json
 
 {
   "fromUserId": "user123",
