@@ -59,7 +59,7 @@ public class NotificationService implements INotificationService {
         );
         TransactionNotification senderNotification = createNotification(
                 transactionId, sender.getCustomerId(), senderMessage, LocalDateTime.now(),
-                TransactionType.TRANSFER_OUT.name(), // Use .name() for enum string representation
+                TransactionType.TRANSFER_OUT.name(),
                 amount, recipient.getCustomerName(), sender.getCustomerName()
         );
         sendNotificationToQueue(senderNotification);
@@ -69,7 +69,7 @@ public class NotificationService implements INotificationService {
         );
         TransactionNotification recipientNotification = createNotification(
                 transactionId, recipient.getCustomerId(), recipientMessage, LocalDateTime.now(),
-                TransactionType.TRANSFER_IN.name(), // Use .name() for enum string representation
+                TransactionType.TRANSFER_IN.name(),
                 amount, recipient.getCustomerName(), sender.getCustomerName()
         );
         sendNotificationToQueue(recipientNotification);
