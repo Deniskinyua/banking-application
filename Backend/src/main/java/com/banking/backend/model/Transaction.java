@@ -2,9 +2,8 @@ package com.banking.backend.model;
 
 import com.banking.backend.enums.TransactionType;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode; // Added for better @Data behavior
-import lombok.ToString; // Added for better @Data behavior
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,11 +11,11 @@ import java.util.UUID;
 
 @Entity
 
-@EqualsAndHashCode(exclude = "account") // Exclude lazy-loaded parent from equals/hashCode
-@ToString(exclude = "account") // Exclude lazy-loaded parent from toString
+@EqualsAndHashCode(exclude = "account")
+@ToString(exclude = "account")
 public class Transaction {
     @Id
-    private String transactionId; // Assuming transactionId is generated and unique
+    private String transactionId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -25,7 +24,7 @@ public class Transaction {
     @Column(nullable = false)
     private BigDecimal amount;
 
-    @Column(length = 255) // Max length for description
+    @Column(length = 255)
     private String description;
 
     @Column(nullable = false)
