@@ -7,6 +7,7 @@ import com.banking.backend.enums.TransactionType;
 import com.banking.backend.model.Account;
 import com.banking.backend.model.Transaction;
 import com.banking.backend.repository.AccountRepository;
+import com.banking.backend.service.interfaces.INotificationService;
 import com.banking.backend.service.interfaces.ITransactionService;
 import com.banking.backend.util.TransactionIdGenerator;
 import org.slf4j.Logger;
@@ -30,10 +31,10 @@ import java.time.LocalDateTime;
 public class TransactionService implements ITransactionService {
 
     private final AccountRepository accountRepository;
-    private final NotificationService notificationService;
+    private final INotificationService notificationService;
     private static final Logger log = LoggerFactory.getLogger(TransactionService.class);
 
-    public TransactionService(AccountRepository accountRepository, NotificationService notificationService) {
+    public TransactionService(AccountRepository accountRepository, INotificationService notificationService) {
         this.accountRepository = accountRepository;
         this.notificationService = notificationService;
     }
@@ -77,7 +78,6 @@ public class TransactionService implements ITransactionService {
             validateTransaction(fromAccount, request.getAmount());
         } catch (InsufficientBalanceException | LimitExceededException e) {
             log.warn("Transaction validation failed for user {}: {}", fromAccount.getCustomerId(), e.getMessage());
-            // Re-throw specific business exceptions that GlobalExceptionHandler can map to HTTP status
             throw e;
         }
 
@@ -93,37 +93,27 @@ public class TransactionService implements ITransactionService {
 
         Transaction debitTransaction = createTransaction(transactionId,
                 TransactionType.TRANSFER_OUT, request.getAmount().negate(),
-                String.format("Transfer to %s (%s)", toAccount.getCustomerName(), toAccount.getCustomerId()), // More descriptive
+                String.format("Transfer to %s (%s)", toAccount.getCustomerName(), toAccount.getCustomerId()),
                 LocalDateTime.now(), fromAccount.getBalance());
 
         fromAccount.addTransaction(debitTransaction);
-        accountRepository.save(fromAccount); // Save sender's account with transaction
+        accountRepository.save(fromAccount);
 
-        // Credit recipient account
         toAccount.setBalance(toAccount.getBalance().add(request.getAmount()));
         Transaction creditTransaction = createTransaction(
                 transactionId, TransactionType.TRANSFER_IN, request.getAmount(),
-                String.format("Transfer from %s (%s)", fromAccount.getCustomerName(), fromAccount.getCustomerId()), // More descriptive
+                String.format("Transfer from %s (%s)", fromAccount.getCustomerName(), fromAccount.getCustomerId()),
                 LocalDateTime.now(),
                 toAccount.getBalance()
         );
         toAccount.addTransaction(creditTransaction);
-        accountRepository.save(toAccount); // Save recipient's account with transaction
+        accountRepository.save(toAccount);
 
         log.info("Funds transferred successfully for transaction ID: {}", transactionId);
-
-        // ASYNCHRONOUS NOTIFICATION: Send message to Azure Service Bus Queue
-        // This call will now enqueue the notification, and the actual sending
-        // (e.g., email/SMS) will happen by the listener independently.
-        // It's crucial this part doesn't block or rollback the primary financial transaction.
-        // If sending to the queue fails, it's a notification system issue, not a financial one.
         try {
             notificationService.sendTransferNotifications(transactionId, fromAccount, toAccount, request.getAmount());
             log.debug("Notification enqueued for transaction ID: {}", transactionId);
         } catch (Exception e) {
-            // Log the failure to send notification to queue, but do NOT roll back the financial transaction
-            // The financial transaction (debit/credit) should already be committed at this point
-            // due to @Transactional and successful saves.
             log.error("Failed to enqueue notification for transaction ID: {}. This will NOT rollback the financial transaction.", transactionId, e);
             // Consider alternative notification methods or a monitoring alert here.
         }
