@@ -1,0 +1,5 @@
+
+server.port: 5601
+server.host: "localhost"
+# The Elasticsearch instances to connect to
+elasticsearch.hosts: ["http://localhost:9200"]
