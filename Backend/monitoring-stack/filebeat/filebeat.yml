@@ -1,0 +1,24 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/springboot/spring-boot-app.log
+
+    fields:
+      application: "my-springboot-app"
+      log_type: "springboot_application_log"
+
+    multiline.pattern: '^\['
+    multiline.negate: true
+    multiline.match: after
+
+    close_inactive: 10s
+    scan_frequency: 5s
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+output.elasticsearch:
+  enabled: false
+
+xpack.monitoring.enabled: false
